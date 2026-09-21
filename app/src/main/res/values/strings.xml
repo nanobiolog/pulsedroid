@@ -15,18 +15,27 @@
     <string name="rhythm_label">HEART RHYTHM</string>
 
     <string name="btn_start_checkup">Start Heart Check</string>
-    <string name="btn_placed_on_chest">Phone is on My Chest → Start</string>
+    <string name="btn_start_table_calib">Phone is Flat on Table → Calibrate (5s)</string>
+    <string name="btn_calibrating">Calibrating... (Please Wait)</string>
+    <string name="btn_waiting_chest">Waiting for Chest Contact...</string>
+    <string name="btn_placed_on_chest">Start Monitoring Now</string>
+    <string name="btn_stop_and_average">Stop Checkup &amp; Show Average</string>
     <string name="btn_cancel">Cancel</string>
 
-    <string name="wizard_step1_title">1. Put Phone Flat on Table</string>
-    <string name="wizard_step1_desc">Rest your phone flat on a table for 2 seconds so it sets zero. Do not touch it.</string>
+    <string name="wizard_step1_title">1. Place Phone Flat on Table</string>
+    <string name="wizard_step1_desc">Put your phone flat on a table or firm surface. Once it is resting still, tap \'Calibrate (5s)\' below.</string>
+    <string name="wizard_step1_ready_title">1. Place Phone Flat on Table</string>
+    <string name="wizard_step1_ready_desc">Put your phone flat on a table or firm surface. Once it is resting still, tap \'Calibrate (5s)\' below.</string>
+
+    <string name="wizard_step1_calibrating_title">Calibrating Zero Baseline...</string>
+    <string name="wizard_step1_calibrating_desc">Keep the phone completely still on the table for 5 seconds. Setting zero baseline...</string>
 
     <string name="wizard_step2_title">2. Place Phone on Chest</string>
-    <string name="wizard_step2_scg_desc">Pick up the phone and place it on your chest (screen facing up). Sit back or lie down comfortably.</string>
-    <string name="wizard_step2_dual_desc">Place phone face down on your chest, and rest your finger gently on the camera light.</string>
+    <string name="wizard_step2_scg_desc">Pick up the phone and place it flat on your chest (screen facing up). Sit back or lie down comfortably. It will detect automatically.</string>
+    <string name="wizard_step2_dual_desc">Place phone face down on your chest, and rest your finger gently on the camera light. It will detect automatically.</string>
 
-    <string name="wizard_step3_title">3. Measuring Your Heart</string>
-    <string name="wizard_step3_desc">Stay still and breathe gently. Measuring your heart for 15 seconds...</string>
+    <string name="wizard_step3_title">3. Live Heart Monitoring</string>
+    <string name="wizard_step3_desc">Monitoring live pulse and blood pressure. Stay relaxed and still. Tap \'Stop &amp; Show Average\' when finished.</string>
 
     <string name="status_on_table">Phone on Table</string>
     <string name="status_on_chest">Measuring on Chest</string>

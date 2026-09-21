@@ -6,7 +6,8 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.os.CountDownTimer
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -35,9 +36,10 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
 
     enum class WizardStage {
         IDLE,
-        STEP1_TABLE_CALIBRATION,
+        STEP1_PUT_ON_TABLE,
+        STEP1_CALIBRATING_5S,
         STEP2_PLACE_ON_CHEST,
-        STEP3_MEASURING_15S
+        STEP3_CONTINUOUS_MONITORING
     }
 
     private lateinit var binding: ActivityMainBinding
@@ -48,14 +50,18 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
     private var vibrator: Vibrator? = null
     private var lastBeatAnimTime = 0L
 
-    // 15-second measurement timer
-    private var recordingTimer: CountDownTimer? = null
-    private val RECORDING_DURATION_MS = 15_000L
+    // Step 2 chest settling timer
+    private var chestStableContactStartMs: Long = 0L
+
+    // Step 3 live monitoring timer
+    private var monitoringStartTimeMs: Long = 0L
+    private val monitoringHandler = Handler(Looper.getMainLooper())
+    private var monitoringRunnable: Runnable? = null
 
     private val requestCameraPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) {
-                startGuidedFlow()
+                advanceToStep1PutOnTable()
             } else {
                 Toast.makeText(this, R.string.permission_camera_rationale, Toast.LENGTH_LONG).show()
             }
@@ -151,62 +157,80 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
                         return
                     }
                 }
-                startGuidedFlow()
+                advanceToStep1PutOnTable()
             }
-            WizardStage.STEP1_TABLE_CALIBRATION -> {
+            WizardStage.STEP1_PUT_ON_TABLE -> {
+                startTableCalibration5s()
+            }
+            WizardStage.STEP1_CALIBRATING_5S -> {
                 resetGuidedFlow()
             }
             WizardStage.STEP2_PLACE_ON_CHEST -> {
-                advanceToStep3Measuring()
+                advanceToStep3ContinuousMonitoring()
             }
-            WizardStage.STEP3_MEASURING_15S -> {
-                resetGuidedFlow()
+            WizardStage.STEP3_CONTINUOUS_MONITORING -> {
+                stopAndShowSummary()
             }
         }
     }
 
-    private fun startGuidedFlow() {
-        renderWizardStage(WizardStage.STEP1_TABLE_CALIBRATION)
+    private fun advanceToStep1PutOnTable() {
+        hapticTick(50)
+        renderWizardStage(WizardStage.STEP1_PUT_ON_TABLE)
+    }
+
+    private fun startTableCalibration5s() {
+        hapticTick(60)
+        renderWizardStage(WizardStage.STEP1_CALIBRATING_5S)
         engine.startMeasurement(engine.mode)
-        engine.startSurfaceCalibration()
+        engine.startSurfaceCalibration(5000L)
     }
 
     private fun advanceToStep2PlaceOnChest() {
-        hapticTick(60)
+        hapticTick(80)
+        chestStableContactStartMs = 0L
         renderWizardStage(WizardStage.STEP2_PLACE_ON_CHEST)
     }
 
-    private fun advanceToStep3Measuring() {
-        hapticTick(60)
-        renderWizardStage(WizardStage.STEP3_MEASURING_15S)
+    private fun advanceToStep3ContinuousMonitoring() {
+        hapticPattern(longArrayOf(0, 80, 80, 120))
+        renderWizardStage(WizardStage.STEP3_CONTINUOUS_MONITORING)
         engine.startRecording()
 
-        recordingTimer?.cancel()
-        recordingTimer = object : CountDownTimer(RECORDING_DURATION_MS, 100) {
-            override fun onTick(millisUntilFinished: Long) {
-                val elapsed = RECORDING_DURATION_MS - millisUntilFinished
-                val percent = ((elapsed.toFloat() / RECORDING_DURATION_MS) * 100).toInt().coerceIn(0, 100)
-                binding.pbWizardProgress.progress = percent
-                binding.tvWizardTitle.text = "Step 3: Measuring (${(millisUntilFinished / 1000) + 1}s remaining)"
+        monitoringStartTimeMs = System.currentTimeMillis()
+        stopMonitoringTimer()
+        monitoringRunnable = object : Runnable {
+            override fun run() {
+                if (currentStage == WizardStage.STEP3_CONTINUOUS_MONITORING) {
+                    val elapsedSec = ((System.currentTimeMillis() - monitoringStartTimeMs) / 1000).toInt()
+                    binding.tvWizardTitle.text = "3. Monitoring Live ($elapsedSec s)"
+                    monitoringHandler.postDelayed(this, 1000)
+                }
             }
+        }
+        monitoringHandler.post(monitoringRunnable!!)
+    }
 
-            override fun onFinish() {
-                binding.pbWizardProgress.progress = 100
-                hapticTick(100)
-                engine.stopRecording()
-            }
-        }.start()
+    private fun stopAndShowSummary() {
+        hapticTick(100)
+        stopMonitoringTimer()
+        engine.stopRecording()
+    }
+
+    private fun stopMonitoringTimer() {
+        monitoringRunnable?.let { monitoringHandler.removeCallbacks(it) }
+        monitoringRunnable = null
     }
 
     private fun resetGuidedFlow() {
-        recordingTimer?.cancel()
-        recordingTimer = null
+        stopMonitoringTimer()
+        chestStableContactStartMs = 0L
         if (engine.isMeasuring) {
             engine.stopMeasurement()
         }
         binding.waveformView.clear()
         binding.tvHrValue.text = "--"
-        binding.tvHrvValue.text = "HRV: -- ms"
+        binding.tvHrvValue.text = "Rhythm: Regular"
         binding.tvBpValue.text = "-- / --"
         binding.tvBpCategory.text = "Follow 3-step guide"
         binding.tvStabilityText.text = "Ready"
@@ -223,8 +247,8 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
                 binding.stepTag2.setTextColor(ContextCompat.getColor(this, R.color.text_muted))
                 binding.stepTag3.setTextColor(ContextCompat.getColor(this, R.color.text_muted))
 
-                binding.tvWizardTitle.text = "Ready for Guided Measurement"
-                binding.tvWizardDesc.text = "Tap below to begin Step 1 (Table Zero Calibration) to calibrate against false sensor noise."
+                binding.tvWizardTitle.text = "Ready for Heart Check"
+                binding.tvWizardDesc.text = "Tap below to begin Step 1. You will place your phone flat on a table to set a zero baseline."
                 binding.pbWizardProgress.visibility = View.GONE
 
                 binding.btnWizardAction.text = getString(R.string.btn_start_checkup)
@@ -232,17 +256,31 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
                 binding.btnWizardAction.setTextColor(Color.BLACK)
                 binding.toggleModeGroup.isEnabled = true
             }
-            WizardStage.STEP1_TABLE_CALIBRATION -> {
+            WizardStage.STEP1_PUT_ON_TABLE -> {
                 binding.stepTag1.setTextColor(ContextCompat.getColor(this, R.color.accent_cyan))
                 binding.stepTag2.setTextColor(ContextCompat.getColor(this, R.color.text_muted))
                 binding.stepTag3.setTextColor(ContextCompat.getColor(this, R.color.text_muted))
 
-                binding.tvWizardTitle.text = getString(R.string.wizard_step1_title)
-                binding.tvWizardDesc.text = getString(R.string.wizard_step1_desc)
+                binding.tvWizardTitle.text = getString(R.string.wizard_step1_ready_title)
+                binding.tvWizardDesc.text = getString(R.string.wizard_step1_ready_desc)
+                binding.pbWizardProgress.visibility = View.GONE
+
+                binding.btnWizardAction.text = getString(R.string.btn_start_table_calib)
+                binding.btnWizardAction.setBackgroundColor(ContextCompat.getColor(this, R.color.accent_cyan))
+                binding.btnWizardAction.setTextColor(Color.BLACK)
+                binding.toggleModeGroup.isEnabled = false
+            }
+            WizardStage.STEP1_CALIBRATING_5S -> {
+                binding.stepTag1.setTextColor(ContextCompat.getColor(this, R.color.accent_cyan))
+                binding.stepTag2.setTextColor(ContextCompat.getColor(this, R.color.text_muted))
+                binding.stepTag3.setTextColor(ContextCompat.getColor(this, R.color.text_muted))
+
+                binding.tvWizardTitle.text = getString(R.string.wizard_step1_calibrating_title)
+                binding.tvWizardDesc.text = getString(R.string.wizard_step1_calibrating_desc)
                 binding.pbWizardProgress.visibility = View.VISIBLE
                 binding.pbWizardProgress.progress = 0
 
-                binding.btnWizardAction.text = "Cancel Guide"
+                binding.btnWizardAction.text = getString(R.string.btn_calibrating)
                 binding.btnWizardAction.setBackgroundColor(Color.parseColor("#334155"))
                 binding.btnWizardAction.setTextColor(Color.WHITE)
                 binding.toggleModeGroup.isEnabled = false
@@ -260,22 +298,21 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
                 }
                 binding.pbWizardProgress.visibility = View.GONE
 
-                binding.btnWizardAction.text = getString(R.string.btn_placed_on_chest)
-                binding.btnWizardAction.setBackgroundColor(ContextCompat.getColor(this, R.color.accent_cyan))
-                binding.btnWizardAction.setTextColor(Color.BLACK)
+                binding.btnWizardAction.text = getString(R.string.btn_waiting_chest)
+                binding.btnWizardAction.setBackgroundColor(Color.parseColor("#334155"))
+                binding.btnWizardAction.setTextColor(Color.WHITE)
                 binding.toggleModeGroup.isEnabled = false
             }
-            WizardStage.STEP3_MEASURING_15S -> {
+            WizardStage.STEP3_CONTINUOUS_MONITORING -> {
                 binding.stepTag1.setTextColor(ContextCompat.getColor(this, R.color.accent_green))
                 binding.stepTag2.setTextColor(ContextCompat.getColor(this, R.color.accent_green))
                 binding.stepTag3.setTextColor(ContextCompat.getColor(this, R.color.accent_cyan))
 
                 binding.tvWizardTitle.text = getString(R.string.wizard_step3_title)
                 binding.tvWizardDesc.text = getString(R.string.wizard_step3_desc)
-                binding.pbWizardProgress.visibility = View.VISIBLE
-                binding.pbWizardProgress.progress = 0
+                binding.pbWizardProgress.visibility = View.GONE
 
-                binding.btnWizardAction.text = "Cancel Measurement"
+                binding.btnWizardAction.text = getString(R.string.btn_stop_and_average)
                 binding.btnWizardAction.setBackgroundColor(Color.parseColor("#DC2626"))
                 binding.btnWizardAction.setTextColor(Color.WHITE)
                 binding.toggleModeGroup.isEnabled = false
@@ -295,14 +332,15 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
 
     // Engine Callbacks
     override fun onCalibrationProgress(percent: Int) {
-        if (currentStage == WizardStage.STEP1_TABLE_CALIBRATION) {
+        if (currentStage == WizardStage.STEP1_CALIBRATING_5S) {
             binding.pbWizardProgress.progress = percent
-            binding.tvWizardTitle.text = "Step 1: Calibrating Surface Baseline ($percent%)"
+            val remainingSec = (((100 - percent) * 5) / 100).coerceAtLeast(1)
+            binding.tvWizardTitle.text = "Calibrating Zero Baseline (${remainingSec}s)..."
         }
     }
 
     override fun onCalibrationCompleted(noiseRms: Double, threshold: Double) {
-        if (currentStage == WizardStage.STEP1_TABLE_CALIBRATION) {
+        if (currentStage == WizardStage.STEP1_CALIBRATING_5S) {
             advanceToStep2PlaceOnChest()
         }
     }
@@ -317,10 +355,27 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
         contactState: PulseMeasurementEngine.ContactState,
         confidencePercent: Int
     ) {
-        // Handle automatic transition from Step 2 to Step 3 when stable chest contact confirmed
+        // Handle automatic transition from Step 2 to Step 3 after settling delay on chest
         if (currentStage == WizardStage.STEP2_PLACE_ON_CHEST) {
             if (contactState == PulseMeasurementEngine.ContactState.CHEST_CONTACT_STABLE && heartRateBpm > 0) {
-                advanceToStep3Measuring()
+                if (chestStableContactStartMs == 0L) {
+                    chestStableContactStartMs = System.currentTimeMillis()
+                }
+                val stableDurationMs = System.currentTimeMillis() - chestStableContactStartMs
+                val settlingTargetMs = 2500L
+                val pct = ((stableDurationMs.toFloat() / settlingTargetMs) * 100).toInt().coerceIn(0, 100)
+                binding.pbWizardProgress.visibility = View.VISIBLE
+                binding.pbWizardProgress.progress = pct
+                val secsLeft = ((settlingTargetMs - stableDurationMs) / 1000 + 1).coerceAtLeast(1)
+                binding.tvWizardTitle.text = "Detecting Heart Rhythm (${secsLeft}s)..."
+
+                if (stableDurationMs >= settlingTargetMs) {
+                    advanceToStep3ContinuousMonitoring()
+                }
+            } else {
+                chestStableContactStartMs = 0L
+                binding.pbWizardProgress.visibility = View.GONE
+                binding.tvWizardTitle.text = getString(R.string.wizard_step2_title)
             }
         }
 
@@ -381,7 +436,7 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
         isScgBeat: Boolean,
         isPpgBeat: Boolean
     ) {
-        if (currentStage == WizardStage.STEP3_MEASURING_15S || currentStage == WizardStage.STEP2_PLACE_ON_CHEST) {
+        if (currentStage == WizardStage.STEP3_CONTINUOUS_MONITORING || currentStage == WizardStage.STEP2_PLACE_ON_CHEST) {
             binding.waveformView.addSamples(scgFiltered, ppgFiltered, isScgBeat, isPpgBeat)
         }
     }
@@ -392,13 +447,18 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
 
     override fun onSessionSaved(summary: SessionSummary, exportDir: File) {
         MaterialAlertDialogBuilder(this)
-            .setTitle("Heart Check Finished! 🎉")
-            .setMessage("Your Results:\n\n❤️ Heart Rate: ${summary.avgBpm} beats/min\n🩺 Blood Pressure: ${summary.estimatedSbp} / ${summary.estimatedDbp} mmHg\n📊 Status: ${summary.bpCategory}\n\nAll saved safely in your history!")
-            .setPositiveButton("View in History") { _, _ ->
-                binding.bottomNav.selectedItemId = R.id.nav_history
+            .setTitle("Checkup Summary 🎉")
+            .setMessage("Your Results:\n\n" +
+                    "❤️ Average Heart Rate: ${summary.avgBpm} beats/min\n" +
+                    "🩺 Average Blood Pressure: ${summary.estimatedSbp} / ${summary.estimatedDbp} mmHg\n" +
+                    "📊 Status: ${summary.bpCategory}\n" +
+                    "⏱️ Monitored Duration: ${summary.durationSeconds} seconds\n\n" +
+                    "All readings saved safely to your History!")
+            .setPositiveButton("Start New Checkup") { _, _ ->
                 resetGuidedFlow()
             }
-            .setNegativeButton("Done") { _, _ ->
+            .setNeutralButton("View History") { _, _ ->
+                binding.bottomNav.selectedItemId = R.id.nav_history
                 resetGuidedFlow()
             }
             .setCancelable(false)
@@ -434,6 +494,15 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
         } else {
             @Suppress("DEPRECATION")
             vibrator?.vibrate(durationMs)
+        }
+    }
+
+    private fun hapticPattern(timings: LongArray) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator?.vibrate(VibrationEffect.createWaveform(timings, -1))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator?.vibrate(timings, -1)
         }
     }
 
@@ -519,7 +588,7 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
     }
 
     override fun onDestroy() {
-        recordingTimer?.cancel()
+        stopMonitoringTimer()
         engine.stopMeasurement()
         super.onDestroy()
     }

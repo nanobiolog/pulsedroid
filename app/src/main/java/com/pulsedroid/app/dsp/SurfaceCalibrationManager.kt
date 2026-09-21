@@ -30,10 +30,13 @@ class SurfaceCalibrationManager(context: Context) {
     var isCalibrating = false
         private set
 
-    private val REQUIRED_SAMPLES = 400 // ~1.5 - 2.0 seconds of accelerometer at FASTEST rate
+    private var startTimeMs: Long = 0L
+    private var targetDurationMs: Long = 5000L
 
-    fun startCalibration() {
+    fun startCalibration(durationMs: Long = 5000L) {
         sampleBuffer.clear()
+        targetDurationMs = durationMs
+        startTimeMs = System.currentTimeMillis()
         isCalibrating = true
     }
 
@@ -41,10 +44,11 @@ class SurfaceCalibrationManager(context: Context) {
         if (!isCalibrating) return
         sampleBuffer.add(dynamicAcc)
 
-        val progress = ((sampleBuffer.size.toFloat() / REQUIRED_SAMPLES) * 100).toInt().coerceAtMost(100)
+        val elapsed = System.currentTimeMillis() - startTimeMs
+        val progress = ((elapsed.toFloat() / targetDurationMs) * 100).toInt().coerceIn(0, 100)
         onProgress(progress)
 
-        if (sampleBuffer.size >= REQUIRED_SAMPLES) {
+        if (elapsed >= targetDurationMs && sampleBuffer.size >= 50) {
             isCalibrating = false
 
             // Compute mean dynamic acceleration

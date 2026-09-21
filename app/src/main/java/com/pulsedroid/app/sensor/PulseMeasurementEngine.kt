@@ -119,6 +119,9 @@ class PulseMeasurementEngine(
     private val recordGyroSamples = ArrayList<GyroSample>()
     private val recordPpgSamples = ArrayList<PpgSample>()
     private val recordPttSamples = ArrayList<PttSample>()
+    private val recordedBpmList = ArrayList<Int>()
+    private val recordedSbpList = ArrayList<Int>()
+    private val recordedDbpList = ArrayList<Int>()
     private var recordingStartTimeMs = 0L
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -144,8 +147,8 @@ class PulseMeasurementEngine(
         }
     )
 
-    fun startSurfaceCalibration() {
-        surfaceCalibrationManager.startCalibration()
+    fun startSurfaceCalibration(durationMs: Long = 5000L) {
+        surfaceCalibrationManager.startCalibration(durationMs)
     }
 
     fun startMeasurement(selectedMode: SensingMode) {
@@ -177,6 +180,9 @@ class PulseMeasurementEngine(
         recordGyroSamples.clear()
         recordPpgSamples.clear()
         recordPttSamples.clear()
+        recordedBpmList.clear()
+        recordedSbpList.clear()
+        recordedDbpList.clear()
         recordingStartTimeMs = System.currentTimeMillis()
         isRecording = true
         mainHandler.post { listener.onRecordingStateChanged(true) }
@@ -193,15 +199,35 @@ class PulseMeasurementEngine(
             estimateBpFromScgOnly()
         }
 
+        val finalAvgBpm = if (recordedBpmList.isNotEmpty()) {
+            recordedBpmList.average().toInt().coerceIn(30, 220)
+        } else {
+            hrEstimator.currentBpm
+        }
+
+        val finalAvgSbp = if (recordedSbpList.isNotEmpty()) {
+            recordedSbpList.average().toInt().coerceIn(80, 220)
+        } else {
+            bpReading.systolic
+        }
+
+        val finalAvgDbp = if (recordedDbpList.isNotEmpty()) {
+            recordedDbpList.average().toInt().coerceIn(50, 140).coerceAtMost(finalAvgSbp - 20)
+        } else {
+            bpReading.diastolic
+        }
+
+        val finalCategory = bpEstimator.classifyBp(finalAvgSbp, finalAvgDbp)
+
         val summary = SessionSummary(
             id = UUID.randomUUID().toString().take(8),
             timestampFormatted = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(Date()),
             durationSeconds = durationSec,
-            avgBpm = hrEstimator.currentBpm,
+            avgBpm = finalAvgBpm,
             avgPttMs = if (mode == SensingMode.CHEST_AND_FINGER_SCG_PPG) smoothedPtt else 0.0,
-            estimatedSbp = bpReading.systolic,
-            estimatedDbp = bpReading.diastolic,
-            bpCategory = bpReading.classification,
+            estimatedSbp = finalAvgSbp,
+            estimatedDbp = finalAvgDbp,
+            bpCategory = finalCategory,
             modeName = if (mode == SensingMode.CHEST_AND_FINGER_SCG_PPG) "Dual SCG + PPG" else "Chest SCG",
             directoryPath = ""
         )
@@ -291,6 +317,14 @@ class PulseMeasurementEngine(
                 estimateBpFromScgOnly()
             } else null
 
+            if (isRecording && currentBpm > 0 && isScgBeat) {
+                recordedBpmList.add(currentBpm)
+                if (bpReading != null) {
+                    recordedSbpList.add(bpReading.systolic)
+                    recordedDbpList.add(bpReading.diastolic)
+                }
+            }
+
             mainHandler.post {
                 listener.onWaveformSamples(
                     scgFiltered = renderVal,
@@ -366,6 +400,14 @@ class PulseMeasurementEngine(
 
         val currentBpm = hrEstimator.currentBpm
         val bpReading = if (currentBpm > 0) bpEstimator.estimate(smoothedPtt) else null
+
+        if (isRecording && currentBpm > 0 && isPpgBeat) {
+            recordedBpmList.add(currentBpm)
+            if (bpReading != null) {
+                recordedSbpList.add(bpReading.systolic)
+                recordedDbpList.add(bpReading.diastolic)
+            }
+        }
 
         mainHandler.post {
             listener.onWaveformSamples(

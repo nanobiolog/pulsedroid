@@ -48,7 +48,7 @@ class BpEstimator(
         calibRefPtt = currentPttMs.coerceIn(120.0, 300.0)
     }
 
-    private fun classifyBp(sbp: Int, dbp: Int): String {
+    fun classifyBp(sbp: Int, dbp: Int): String {
         return when {
             sbp < 120 && dbp < 80 -> "Healthy & Normal"
             sbp in 120..129 && dbp < 80 -> "Normal (Good)"
