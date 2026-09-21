@@ -50,11 +50,11 @@ class BpEstimator(
 
     private fun classifyBp(sbp: Int, dbp: Int): String {
         return when {
-            sbp < 120 && dbp < 80 -> "Normal"
-            sbp in 120..129 && dbp < 80 -> "Elevated"
-            sbp in 130..139 || dbp in 80..89 -> "Stage 1 Hypertension"
-            sbp >= 140 || dbp >= 90 -> "Stage 2 Hypertension"
-            else -> "Normal"
+            sbp < 120 && dbp < 80 -> "Healthy & Normal"
+            sbp in 120..129 && dbp < 80 -> "Normal (Good)"
+            sbp in 130..139 || dbp in 80..89 -> "Slightly High"
+            sbp >= 140 || dbp >= 90 -> "High"
+            else -> "Healthy & Normal"
         }
     }
 }

@@ -1,39 +1,53 @@
 <resources>
     <string name="app_name">PulseDroid</string>
-    <string name="title_measurement">Live Monitor</string>
+    <string name="title_measurement">Heart Check</string>
     <string name="title_history">History</string>
-    <string name="title_calibrate">Calibration</string>
-    <string name="title_guide">Placement Guide</string>
+    <string name="title_calibrate">Settings</string>
+    <string name="title_guide">Instructions</string>
 
-    <string name="mode_scg_only">Chest SCG (Primary)</string>
-    <string name="mode_dual">Dual SCG + PPG</string>
+    <string name="mode_scg_only">On Chest (Simple)</string>
+    <string name="mode_dual">Chest + Finger</string>
 
     <string name="heart_rate_label">HEART RATE</string>
-    <string name="bpm_unit">BPM</string>
-    <string name="blood_pressure_label">EST. BLOOD PRESSURE</string>
+    <string name="bpm_unit">beats/min</string>
+    <string name="blood_pressure_label">BLOOD PRESSURE</string>
     <string name="bp_unit">mmHg</string>
-    <string name="ptt_label">PULSE TRANSIT TIME</string>
-    <string name="ptt_unit">ms</string>
-    <string name="hrv_label">HRV (RMSSD)</string>
-    <string name="stability_label">CHEST STABILITY</string>
+    <string name="rhythm_label">HEART RHYTHM</string>
 
-    <string name="btn_start">Start Sensing</string>
-    <string name="btn_stop">Stop Sensing</string>
-    <string name="btn_record">15s Measure</string>
-    <string name="btn_stop_record">Cancel Recording</string>
-    <string name="btn_surface_calib">Zero Surface</string>
+    <string name="btn_start_checkup">Start Heart Check</string>
+    <string name="btn_placed_on_chest">Phone is on My Chest → Start</string>
+    <string name="btn_cancel">Cancel</string>
+
+    <string name="wizard_step1_title">1. Put Phone Flat on Table</string>
+    <string name="wizard_step1_desc">Rest your phone flat on a table for 2 seconds so it sets zero. Do not touch it.</string>
+
+    <string name="wizard_step2_title">2. Place Phone on Chest</string>
+    <string name="wizard_step2_scg_desc">Pick up the phone and place it on your chest (screen facing up). Sit back or lie down comfortably.</string>
+    <string name="wizard_step2_dual_desc">Place phone face down on your chest, and rest your finger gently on the camera light.</string>
+
+    <string name="wizard_step3_title">3. Measuring Your Heart</string>
+    <string name="wizard_step3_desc">Stay still and breathe gently. Measuring your heart for 15 seconds...</string>
+
+    <string name="status_on_table">Phone on Table</string>
+    <string name="status_on_chest">Measuring on Chest</string>
+    <string name="status_hold_still">Please Hold Still</string>
+    <string name="status_place_finger">Place Finger on Camera</string>
+
+    <string name="bp_healthy">Healthy &amp; Normal</string>
+    <string name="bp_elevated">Slightly High</string>
+    <string name="bp_high">High</string>
 
     <string name="instruction_scg">Place phone flat on your chest over sternum (screen up). Lie still and relax.</string>
     <string name="instruction_dual">Place phone FACE DOWN on chest (screen against chest, camera up). Rest index finger on camera flash.</string>
     <string name="permission_camera_rationale">Camera and flash access is needed for photoplethysmography (PPG) pulse transit sensing.</string>
 
-    <string name="guide_title">How to Measure</string>
-    <string name="guide_step1_title">1. Zero Calibration on Table</string>
-    <string name="guide_step1_desc">First, place your phone flat on a table and tap \'Zero Surface\'. This measures sensor noise and ensures 0 BPM when not on your body.</string>
-    <string name="guide_step2_title">2. Chest SCG Mode (Recommended)</string>
-    <string name="guide_step2_desc">Place phone flat on your bare chest or light shirt, screen facing up over your lower sternum. You can watch the real-time cardiac waveforms!</string>
-    <string name="guide_step3_title">3. Dual SCG + PPG Mode (Blood Pressure)</string>
-    <string name="guide_step3_desc">Place phone FACE DOWN on your chest so the camera and flash face UP. Rest your index finger gently on the camera without lifting the phone.</string>
+    <string name="guide_title">Simple Guide for Measuring</string>
+    <string name="guide_step1_title">1. Rest on Table</string>
+    <string name="guide_step1_desc">First, place the phone flat on a table so it can calibrate zero. This ensures it doesn\'t show a pulse when resting on furniture.</string>
+    <string name="guide_step2_title">2. Place on Chest</string>
+    <string name="guide_step2_desc">Place the phone flat against the center of your chest. Lie down or lean back in an armchair.</string>
+    <string name="guide_step3_title">3. Relax for 15 Seconds</string>
+    <string name="guide_step3_desc">Relax and breathe normally. The phone will count 15 seconds and vibrate when your checkup is complete.</string>
     <string name="guide_step4_title">4. Hands-Free Controls</string>
-    <string name="guide_step4_desc">Press the Volume-Down key to start the 15-second guided measurement hands-free while lying down!</string>
+    <string name="guide_step4_desc">You can press the Volume-Down button on the side of your phone to start without touching the screen.</string>
 </resources>

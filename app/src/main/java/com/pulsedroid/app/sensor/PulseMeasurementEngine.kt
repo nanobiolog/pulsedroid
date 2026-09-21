@@ -447,11 +447,11 @@ class PulseMeasurementEngine(
         val sbp = (bpEstimator.calibRefSbp * normalizedAmp).toInt().coerceIn(90, 180)
         val dbp = (bpEstimator.calibRefDbp * (0.8 + 0.2 * normalizedAmp)).toInt().coerceIn(60, 110)
         val classification = when {
-            sbp < 120 && dbp < 80 -> "Normal"
-            sbp in 120..129 && dbp < 80 -> "Elevated"
-            sbp in 130..139 || dbp in 80..89 -> "Stage 1 Hypertension"
-            sbp >= 140 || dbp >= 90 -> "Stage 2 Hypertension"
-            else -> "Normal"
+            sbp < 120 && dbp < 80 -> "Healthy & Normal"
+            sbp in 120..129 && dbp < 80 -> "Normal (Good)"
+            sbp in 130..139 || dbp in 80..89 -> "Slightly High"
+            sbp >= 140 || dbp >= 90 -> "High"
+            else -> "Healthy & Normal"
         }
         return BpEstimator.BpReading(sbp, dbp, 0.0, classification)
     }
