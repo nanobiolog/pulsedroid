@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_measure"
+        android:icon="@drawable/ic_waveform"
+        android:title="Monitor" />
+    <item
+        android:id="@+id/nav_history"
+        android:icon="@drawable/ic_history"
+        android:title="History" />
+    <item
+        android:id="@+id/nav_calibrate"
+        android:icon="@drawable/ic_tune"
+        android:title="Calibrate" />
+    <item
+        android:id="@+id/nav_guide"
+        android:icon="@drawable/ic_help"
+        android:title="Guide" />
+</menu>
