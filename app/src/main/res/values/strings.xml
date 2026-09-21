@@ -5,8 +5,8 @@
     <string name="title_calibrate">Calibration</string>
     <string name="title_guide">Placement Guide</string>
 
-    <string name="mode_scg_only">Chest Only (SCG)</string>
-    <string name="mode_dual">Chest + Finger (SCG+PPG)</string>
+    <string name="mode_scg_only">Chest SCG (Primary)</string>
+    <string name="mode_dual">Dual SCG + PPG</string>
 
     <string name="heart_rate_label">HEART RATE</string>
     <string name="bpm_unit">BPM</string>
@@ -19,20 +19,21 @@
 
     <string name="btn_start">Start Sensing</string>
     <string name="btn_stop">Stop Sensing</string>
-    <string name="btn_record">Record</string>
-    <string name="btn_stop_record">Stop &amp; Save</string>
+    <string name="btn_record">15s Measure</string>
+    <string name="btn_stop_record">Cancel Recording</string>
+    <string name="btn_surface_calib">Zero Surface</string>
 
-    <string name="instruction_scg">Place phone flat against your chest over your sternum. Breathe gently.</string>
-    <string name="instruction_dual">Place phone on chest over sternum and rest index finger gently on rear camera flash.</string>
+    <string name="instruction_scg">Place phone flat on your chest over sternum (screen up). Lie still and relax.</string>
+    <string name="instruction_dual">Place phone FACE DOWN on chest (screen against chest, camera up). Rest index finger on camera flash.</string>
     <string name="permission_camera_rationale">Camera and flash access is needed for photoplethysmography (PPG) pulse transit sensing.</string>
 
     <string name="guide_title">How to Measure</string>
-    <string name="guide_step1_title">1. Posture &amp; Rest</string>
-    <string name="guide_step1_desc">Sit comfortably or lie down on your back. Rest for 2 minutes before starting to ensure a steady resting heart rate.</string>
-    <string name="guide_step2_title">2. Phone on Chest</string>
-    <string name="guide_step2_desc">Place the phone flat against your bare chest or light shirt, directly over your lower sternum (center of your chest). Keep completely still.</string>
-    <string name="guide_step3_title">3. Finger on Camera (Dual Mode)</string>
-    <string name="guide_step3_desc">For Blood Pressure &amp; PTT mode, place your index finger gently over the rear camera lens and flash without pressing too hard.</string>
+    <string name="guide_step1_title">1. Zero Calibration on Table</string>
+    <string name="guide_step1_desc">First, place your phone flat on a table and tap \'Zero Surface\'. This measures sensor noise and ensures 0 BPM when not on your body.</string>
+    <string name="guide_step2_title">2. Chest SCG Mode (Recommended)</string>
+    <string name="guide_step2_desc">Place phone flat on your bare chest or light shirt, screen facing up over your lower sternum. You can watch the real-time cardiac waveforms!</string>
+    <string name="guide_step3_title">3. Dual SCG + PPG Mode (Blood Pressure)</string>
+    <string name="guide_step3_desc">Place phone FACE DOWN on your chest so the camera and flash face UP. Rest your index finger gently on the camera without lifting the phone.</string>
     <string name="guide_step4_title">4. Hands-Free Controls</string>
-    <string name="guide_step4_desc">You can press the Volume-Down key to toggle recording without looking at the screen!</string>
+    <string name="guide_step4_desc">Press the Volume-Down key to start the 15-second guided measurement hands-free while lying down!</string>
 </resources>

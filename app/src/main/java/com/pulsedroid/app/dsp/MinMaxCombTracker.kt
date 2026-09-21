@@ -2,7 +2,7 @@ package com.pulsedroid.app.dsp
 
 /**
  * Tracks local signal minimum and maximum by storing decimated values in a circular comb buffer.
- * Provides adaptive threshold calculations for peak detection.
+ * Provides adaptive threshold calculations for peak detection with absolute amplitude gating.
  * (Based on ubicomplab/Seismo Filter_MinMax)
  */
 class MinMaxCombTracker(
@@ -42,16 +42,30 @@ class MinMaxCombTracker(
         return minVal
     }
 
+    fun getPeakToPeak(): Double {
+        return getMax() - getMin()
+    }
+
+    fun hasSufficientAmplitude(minThreshold: Double): Boolean {
+        return getPeakToPeak() >= minThreshold
+    }
+
     fun getMiddle(): Double {
         return (getMax() + getMin()) / 2.0
     }
 
-    fun getThreshold(fraction: Double): Double {
-        if (fraction >= 1.0) return getMax()
-        if (fraction <= 0.0) return getMin()
+    fun getThreshold(fraction: Double, absoluteMinFloor: Double = 0.0): Double {
         val min = getMin()
         val max = getMax()
-        return min + (max - min) * fraction
+        val p2p = max - min
+        if (p2p < absoluteMinFloor) {
+            // Signal amplitude is below noise floor - prevent false threshold trigger
+            return Double.MAX_VALUE
+        }
+        if (fraction >= 1.0) return max
+        if (fraction <= 0.0) return min
+        val adaptive = min + p2p * fraction
+        return adaptive.coerceAtLeast(absoluteMinFloor)
     }
 
     fun reset() {

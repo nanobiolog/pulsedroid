@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingHorizontal="20dp"
+        android:paddingHorizontal="16dp"
         android:paddingTop="16dp"
         android:paddingBottom="12dp"
         app:layout_constraintTop_toTopOf="parent">
@@ -30,7 +30,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:layout_marginStart="12dp">
+            android:layout_marginStart="10dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -44,12 +44,26 @@
                 android:id="@+id/tv_header_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="SCG &amp; PPG Hemodynamics"
+                android:text="Chest SCG (Primary)"
                 android:textColor="@color/accent_cyan"
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- Stability Indicator Pill -->
+        <!-- Zero Surface Calibration Shortcut -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_zero_surface"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="0dp"
+            android:text="@string/btn_surface_calib"
+            android:textSize="11sp"
+            android:textColor="@color/accent_cyan"
+            app:strokeColor="@color/accent_cyan"
+            android:layout_marginEnd="6dp" />
+
+        <!-- Stability & Contact Status Pill -->
         <LinearLayout
             android:id="@+id/pill_stability"
             android:layout_width="wrap_content"
@@ -57,7 +71,7 @@
             android:background="@drawable/bg_pill"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingHorizontal="12dp"
+            android:paddingHorizontal="10dp"
             android:paddingVertical="6dp">
 
             <View
@@ -74,7 +88,7 @@
                 android:layout_marginStart="6dp"
                 android:text="Ready"
                 android:textColor="@color/text_secondary"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
@@ -95,24 +109,14 @@
             android:paddingHorizontal="16dp"
             android:paddingBottom="24dp">
 
-            <!-- Mode Switcher Tabs -->
+            <!-- Mode Switcher Tabs (Default SCG Only) -->
             <com.google.android.material.button.MaterialButtonToggleGroup
                 android:id="@+id/toggle_mode_group"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                app:checkedButton="@id/btn_mode_dual"
+                android:layout_marginTop="2dp"
+                app:checkedButton="@id/btn_mode_scg"
                 app:singleSelection="true">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_mode_dual"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/mode_dual"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_primary" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_mode_scg"
@@ -123,6 +127,16 @@
                     android:text="@string/mode_scg_only"
                     android:textSize="12sp"
                     android:textColor="@color/text_primary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_mode_dual"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/mode_dual"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_primary" />
             </com.google.android.material.button.MaterialButtonToggleGroup>
 
             <!-- Real-time Metrics Row -->
@@ -130,7 +144,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="12dp">
+                android:layout_marginTop="10dp">
 
                 <!-- Heart Rate Card -->
                 <LinearLayout
@@ -234,7 +248,7 @@
                         android:id="@+id/tv_bp_category"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="PTT: -- ms"
+                        android:text="Place on chest"
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp"
                         android:layout_marginTop="2dp" />
@@ -248,12 +262,56 @@
                 android:background="@drawable/bg_card_rounded"
                 android:orientation="vertical"
                 android:padding="12dp"
-                android:layout_marginTop="12dp">
+                android:layout_marginTop="10dp">
 
                 <com.pulsedroid.app.ui.WaveformCanvasView
                     android:id="@+id/waveform_view"
                     android:layout_width="match_parent"
-                    android:layout_height="180dp" />
+                    android:layout_height="170dp" />
+            </LinearLayout>
+
+            <!-- Measurement Progress Bar (During 15s session) -->
+            <LinearLayout
+                android:id="@+id/layout_record_progress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="8dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tv_progress_label"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Recording 15-second average..."
+                        android:textColor="@color/accent_cyan"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_progress_percent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0%"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <ProgressBar
+                    android:id="@+id/pb_record_progress"
+                    style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:layout_marginTop="4dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressTint="@color/accent_cyan" />
             </LinearLayout>
 
             <!-- Placement Guidance Card -->
@@ -265,7 +323,7 @@
                 android:orientation="horizontal"
                 android:padding="12dp"
                 android:gravity="center_vertical"
-                android:layout_marginTop="12dp">
+                android:layout_marginTop="10dp">
 
                 <ImageView
                     android:layout_width="28dp"
@@ -280,7 +338,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="10dp"
-                    android:text="@string/instruction_dual"
+                    android:text="@string/instruction_scg"
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -290,7 +348,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="16dp">
+                android:layout_marginTop="14dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_toggle_sensing"
@@ -324,13 +382,13 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:gravity="center"
-                android:text="Tip: Press Volume-Down to start/stop recording hands-free"
+                android:text="Tip: Press Volume-Down to start a 15-second measurement hands-free"
                 android:textColor="@color/text_muted"
                 android:textSize="11sp" />
         </LinearLayout>
     </ScrollView>
 
-    <!-- History Container (Hidden by default, shown when History tab selected) -->
+    <!-- History Container -->
     <LinearLayout
         android:id="@+id/layout_history_container"
         android:layout_width="match_parent"

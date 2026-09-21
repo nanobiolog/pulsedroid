@@ -2,12 +2,11 @@ package com.pulsedroid.app.ui
 
 import android.Manifest
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.os.CombinedVibration
+import android.os.CountDownTimer
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -18,13 +17,13 @@ import android.view.ViewGroup
 import android.view.animation.ScaleAnimation
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.pulsedroid.app.R
 import com.pulsedroid.app.data.HistoryRepository
@@ -42,6 +41,16 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
 
     private var vibrator: Vibrator? = null
     private var lastBeatAnimTime = 0L
+
+    // 15-second guided measurement timer
+    private var recordingTimer: CountDownTimer? = null
+    private val RECORDING_DURATION_MS = 15_000L
+
+    // Active surface calibration dialog references
+    private var surfaceCalibDialog: AlertDialog? = null
+    private var pbCalibProgress: ProgressBar? = null
+    private var tvCalibStatus: TextView? = null
+    private var tvCalibValues: TextView? = null
 
     private val requestCameraPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -86,8 +95,8 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
                 updateSensingUiState(false)
             }
             when (checkedId) {
-                R.id.btn_mode_dual -> engine.mode = PulseMeasurementEngine.SensingMode.CHEST_AND_FINGER_SCG_PPG
                 R.id.btn_mode_scg -> engine.mode = PulseMeasurementEngine.SensingMode.CHEST_ONLY_SCG
+                R.id.btn_mode_dual -> engine.mode = PulseMeasurementEngine.SensingMode.CHEST_AND_FINGER_SCG_PPG
             }
             updateModeDescription()
         }
@@ -102,13 +111,18 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
             }
         }
 
-        // Recording toggle
+        // 15-second guided recording toggle
         binding.btnToggleRecording.setOnClickListener {
             if (engine.isRecording) {
-                engine.stopRecording()
+                cancelGuidedRecording()
             } else {
-                engine.startRecording()
+                startGuidedRecording()
             }
+        }
+
+        // Zero Surface Calibration button
+        binding.btnZeroSurface.setOnClickListener {
+            showSurfaceCalibrationDialog()
         }
 
         // Clear history button
@@ -163,16 +177,15 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
     }
 
     private fun updateModeDescription() {
-        if (engine.mode == PulseMeasurementEngine.SensingMode.CHEST_AND_FINGER_SCG_PPG) {
-            binding.tvHeaderSubtitle.text = "Chest SCG + Finger Optical PPG"
+        if (engine.mode == PulseMeasurementEngine.SensingMode.CHEST_ONLY_SCG) {
+            binding.tvHeaderSubtitle.text = "Chest SCG (Screen Facing Up)"
+            binding.tvInstruction.text = getString(R.string.instruction_scg)
+            binding.tvBpCategory.text = "Place on chest"
+        } else {
+            binding.tvHeaderSubtitle.text = "Dual Mode (Face Down on Chest)"
             binding.tvInstruction.text = getString(R.string.instruction_dual)
             binding.tvBpValue.text = "-- / --"
-            binding.tvBpCategory.text = "PTT: -- ms"
-        } else {
-            binding.tvHeaderSubtitle.text = "Chest Seismocardiography Only"
-            binding.tvInstruction.text = getString(R.string.instruction_scg)
-            binding.tvBpValue.text = "N/A"
-            binding.tvBpCategory.text = "Select Dual Mode for BP"
+            binding.tvBpCategory.text = "Rest finger on camera"
         }
     }
 
@@ -184,6 +197,7 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
             binding.btnToggleRecording.isEnabled = true
             binding.toggleModeGroup.isEnabled = false
         } else {
+            cancelGuidedRecording()
             binding.btnToggleSensing.text = getString(R.string.btn_start)
             binding.btnToggleSensing.setBackgroundColor(ContextCompat.getColor(this, R.color.accent_cyan))
             binding.btnToggleSensing.setTextColor(Color.BLACK)
@@ -194,6 +208,44 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
             binding.tvStabilityText.text = "Ready"
             binding.viewStabilityDot.backgroundTintList =
                 ContextCompat.getColorStateList(this, R.color.accent_green)
+            binding.tvHrValue.text = "--"
+            binding.tvHrvValue.text = "HRV: -- ms"
+            binding.tvBpValue.text = "-- / --"
+            binding.tvBpCategory.text = "Place on chest"
+        }
+    }
+
+    private fun startGuidedRecording() {
+        if (!engine.isMeasuring) return
+        engine.startRecording()
+        binding.layoutRecordProgress.visibility = View.VISIBLE
+        binding.pbRecordProgress.progress = 0
+        binding.tvProgressPercent.text = "0%"
+
+        recordingTimer?.cancel()
+        recordingTimer = object : CountDownTimer(RECORDING_DURATION_MS, 100) {
+            override fun onTick(millisUntilFinished: Long) {
+                val elapsed = RECORDING_DURATION_MS - millisUntilFinished
+                val percent = ((elapsed.toFloat() / RECORDING_DURATION_MS) * 100).toInt().coerceIn(0, 100)
+                binding.pbRecordProgress.progress = percent
+                binding.tvProgressPercent.text = "$percent%"
+            }
+
+            override fun onFinish() {
+                binding.pbRecordProgress.progress = 100
+                binding.tvProgressPercent.text = "100%"
+                engine.stopRecording()
+                binding.layoutRecordProgress.visibility = View.GONE
+            }
+        }.start()
+    }
+
+    private fun cancelGuidedRecording() {
+        recordingTimer?.cancel()
+        recordingTimer = null
+        binding.layoutRecordProgress.visibility = View.GONE
+        if (engine.isRecording) {
+            engine.stopRecording()
         }
     }
 
@@ -204,42 +256,59 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
         pttMs: Double,
         bpReading: BpEstimator.BpReading?,
         stabilityScore: Float,
-        isHeartbeatTick: Boolean
+        isHeartbeatTick: Boolean,
+        contactState: PulseMeasurementEngine.ContactState,
+        confidencePercent: Int
     ) {
+        // Contact State Display & Zero Table Handling
+        when (contactState) {
+            PulseMeasurementEngine.ContactState.ON_TABLE_STATIONARY -> {
+                binding.tvStabilityText.text = "On Table (0 BPM)"
+                binding.viewStabilityDot.backgroundTintList =
+                    ContextCompat.getColorStateList(this, R.color.text_muted)
+                binding.tvHrValue.text = "--"
+                binding.tvHrvValue.text = "No Pulse Detected"
+                binding.tvBpValue.text = "-- / --"
+                binding.tvBpCategory.text = "Place phone on chest"
+                return
+            }
+            PulseMeasurementEngine.ContactState.WAITING_FOR_FINGER -> {
+                binding.tvStabilityText.text = "Place Finger on Camera"
+                binding.viewStabilityDot.backgroundTintList =
+                    ContextCompat.getColorStateList(this, R.color.accent_amber)
+                binding.tvBpCategory.text = "Rest index finger on flash"
+            }
+            PulseMeasurementEngine.ContactState.CHEST_CONTACT_SHAKING -> {
+                binding.tvStabilityText.text = "Motion Detected"
+                binding.viewStabilityDot.backgroundTintList =
+                    ContextCompat.getColorStateList(this, R.color.accent_amber)
+            }
+            PulseMeasurementEngine.ContactState.CHEST_CONTACT_STABLE -> {
+                binding.tvStabilityText.text = "Stable on Chest ($confidencePercent%)"
+                binding.viewStabilityDot.backgroundTintList =
+                    ContextCompat.getColorStateList(this, R.color.accent_green)
+            }
+        }
+
         // Update Heart Rate
         if (heartRateBpm > 0) {
             binding.tvHrValue.text = heartRateBpm.toString()
             binding.tvHrvValue.text = String.format("HRV: %.1f ms", hrvMs)
+        } else {
+            binding.tvHrValue.text = "--"
+            binding.tvHrvValue.text = "Acquiring..."
         }
 
         // Pulse Animation on Beat
-        if (isHeartbeatTick) {
+        if (isHeartbeatTick && heartRateBpm > 0) {
             animateHeartbeat()
         }
 
         // Update Blood Pressure
-        if (bpReading != null) {
+        if (bpReading != null && heartRateBpm > 0) {
             binding.tvBpValue.text = "${bpReading.systolic} / ${bpReading.diastolic}"
-            binding.tvBpCategory.text = "${bpReading.classification} • PTT: ${String.format("%.0f", pttMs)} ms"
-        }
-
-        // Update Stability Pill
-        when {
-            stabilityScore > 0.75f -> {
-                binding.tvStabilityText.text = "Stable"
-                binding.viewStabilityDot.backgroundTintList =
-                    ContextCompat.getColorStateList(this, R.color.accent_green)
-            }
-            stabilityScore > 0.45f -> {
-                binding.tvStabilityText.text = "Stabilizing..."
-                binding.viewStabilityDot.backgroundTintList =
-                    ContextCompat.getColorStateList(this, R.color.accent_amber)
-            }
-            else -> {
-                binding.tvStabilityText.text = "Motion Alert"
-                binding.viewStabilityDot.backgroundTintList =
-                    ContextCompat.getColorStateList(this, R.color.accent_crimson)
-            }
+            val pttStr = if (pttMs > 0) " • PTT: ${String.format("%.0f", pttMs)} ms" else ""
+            binding.tvBpCategory.text = "${bpReading.classification}$pttStr"
         }
     }
 
@@ -256,26 +325,72 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
         if (isRecording) {
             binding.btnToggleRecording.text = getString(R.string.btn_stop_record)
             binding.btnToggleRecording.setBackgroundColor(Color.parseColor("#DC2626"))
-            Toast.makeText(this, "Recording session started...", Toast.LENGTH_SHORT).show()
         } else {
             binding.btnToggleRecording.text = getString(R.string.btn_record)
             binding.btnToggleRecording.setBackgroundColor(ContextCompat.getColor(this, R.color.accent_crimson))
+            binding.layoutRecordProgress.visibility = View.GONE
         }
     }
 
     override fun onSessionSaved(summary: SessionSummary, exportDir: File) {
         MaterialAlertDialogBuilder(this)
-            .setTitle("Session Saved")
-            .setMessage("Recording completed successfully!\n\nDuration: ${summary.durationSeconds}s\nAvg HR: ${summary.avgBpm} BPM\nEst. BP: ${summary.estimatedSbp}/${summary.estimatedDbp} mmHg\n\nCSVs saved to:\n${exportDir.name}")
+            .setTitle("15s Session Complete")
+            .setMessage("Measurement averaged successfully!\n\nAvg Heart Rate: ${summary.avgBpm} BPM\nEst. Blood Pressure: ${summary.estimatedSbp}/${summary.estimatedDbp} mmHg (${summary.bpCategory})\nDuration: ${summary.durationSeconds}s\n\nRaw CSV files exported to:\n${exportDir.name}")
             .setPositiveButton("View in History") { _, _ ->
                 binding.bottomNav.selectedItemId = R.id.nav_history
             }
-            .setNegativeButton("OK", null)
+            .setNegativeButton("Close", null)
             .show()
+    }
+
+    override fun onCalibrationProgress(percent: Int) {
+        pbCalibProgress?.progress = percent
+        tvCalibStatus?.text = "Measuring ambient noise: $percent%"
+    }
+
+    override fun onCalibrationCompleted(noiseRms: Double, threshold: Double) {
+        pbCalibProgress?.progress = 100
+        tvCalibStatus?.text = "Calibration Complete!"
+        tvCalibValues?.text = String.format("Noise Floor: %.4f m/s² | Pulse Gate: %.4f m/s²", noiseRms, threshold)
+        Toast.makeText(this, "Surface calibrated: 0 pulse on table verified", Toast.LENGTH_SHORT).show()
+        surfaceCalibDialog?.getButton(AlertDialog.BUTTON_POSITIVE)?.isEnabled = true
     }
 
     override fun onError(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showSurfaceCalibrationDialog() {
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_surface_calibration, null)
+        pbCalibProgress = view.findViewById(R.id.pb_calib_progress)
+        tvCalibStatus = view.findViewById(R.id.tv_calib_status)
+        tvCalibValues = view.findViewById(R.id.tv_calib_values)
+
+        tvCalibValues?.text = String.format(
+            "Noise Floor: %.4f m/s² | Pulse Gate: %.4f m/s²",
+            engine.surfaceCalibrationManager.noiseFloorRms,
+            engine.surfaceCalibrationManager.minScgPeakThreshold
+        )
+
+        surfaceCalibDialog = MaterialAlertDialogBuilder(this)
+            .setView(view)
+            .setPositiveButton("Done", null)
+            .setNeutralButton("Calibrate Now") { dialog, _ ->
+                // Keep open to perform calibration
+            }
+            .create()
+
+        surfaceCalibDialog?.show()
+
+        // Handle Calibrate Now click without dismissing dialog
+        surfaceCalibDialog?.getButton(AlertDialog.BUTTON_NEUTRAL)?.setOnClickListener {
+            tvCalibStatus?.text = "Stay completely still... Calibrating..."
+            pbCalibProgress?.progress = 0
+            if (!engine.isMeasuring) {
+                engine.startMeasurement(PulseMeasurementEngine.SensingMode.CHEST_ONLY_SCG)
+            }
+            engine.startSurfaceCalibration()
+        }
     }
 
     private fun animateHeartbeat() {
@@ -303,13 +418,16 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
         }
     }
 
-    // Volume key trigger (from Seismo App_MeasurementFragment)
+    // Volume-Down trigger for hands-free 15s measurement
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN && engine.isMeasuring) {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            if (!engine.isMeasuring) {
+                startMeasurementWithPermissions()
+            }
             if (engine.isRecording) {
-                engine.stopRecording()
+                cancelGuidedRecording()
             } else {
-                engine.startRecording()
+                startGuidedRecording()
             }
             return true
         }
@@ -364,7 +482,7 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
                     row.findViewById<TextView>(R.id.tv_item_bpm).text = "${item.avgBpm} BPM"
                     row.findViewById<TextView>(R.id.tv_item_bp).text =
                         if (item.estimatedSbp > 0) "${item.estimatedSbp}/${item.estimatedDbp} mmHg" else "SCG Only"
-                    row.findViewById<TextView>(R.id.tv_item_duration).text = "${item.durationSeconds}s duration"
+                    row.findViewById<TextView>(R.id.tv_item_duration).text = "${item.durationSeconds}s recording"
                     row.findViewById<TextView>(R.id.tv_item_ptt).text =
                         if (item.avgPttMs > 0) "PTT: ${String.format("%.0f", item.avgPttMs)} ms" else ""
                     row.findViewById<TextView>(R.id.tv_item_path).text = item.directoryPath
@@ -389,6 +507,7 @@ class MainActivity : AppCompatActivity(), PulseMeasurementEngine.MeasurementList
     }
 
     override fun onDestroy() {
+        recordingTimer?.cancel()
         engine.stopMeasurement()
         super.onDestroy()
     }
